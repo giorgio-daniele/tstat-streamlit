@@ -1,0 +1,55 @@
+<head>
+    <!-- Load the Roboto font from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<div style="text-align: justify; font-family: 'Roboto', sans-serif;">
+    <h1>DAZN</h1>
+    <p>
+        <b>DAZN</b> (/dəˈzoʊn/; pronounced "da zone") is a British over-the-top sports
+        streaming and entertainment platform. Founded in 2007 as Perform Group
+        via the merger of Premium TV Limited and Inform Group, it is owned by Access
+        Industries, the investment group founded by Sir Len Blavatnik, and is
+        headquartered in London, England. Shay Segev is DAZN's CEO as of January
+        2021. The non-executive directors are Lincoln Benet, John Gleasure and
+        Guillaume D’Hauteville. The DAZN platform was founded in 2015 and
+        broadcasts live and on-demand sport in over 200 countries worldwide with a
+        strong domestic presence in Italy, Spain, Germany, Japan, France, Portugal,
+        Belgium, Taiwan, the United States and Canada, where it has key domestic
+        broadcast rights. It is considered to be Europe's largest digital sports
+        broadcaster with over 75 programming rights. As of 2023, the
+        service has 20 million paid subscribers globally.
+    </p>
+    <p>
+        Source:
+        <a href="https://en.wikipedia.org/wiki/DAZN" target="_blank">Wikipedia</a>
+    </p>
+    <h4>Streaming Technology and Infrastructure</h4>
+    <p>DAZN operates on a foundation of Dynamic Adaptive Streaming over HTTP (<b>DASH</b>), which is more than just a
+        network protocol; it represents a paradigm for linking multimedia resources—specifically video and audio—with
+        the temporal context of their delivery. DASH is designed to enhance the user experience by optimizing video
+        playback quality through dynamic bitrate adjustments, responding to varying network conditions and device
+        capabilities. Research has shown that DASH has become a leading standard in over-the-top (OTT) streaming due to
+        its capability to adapt efficiently to fluctuating network environments, minimizing buffering and ensuring a
+        seamless viewing experience (<a href="https://ieeexplore.ieee.org/document/9774530" target="_blank">Chen et al.,
+            2022</a>). The methodology of DASH involves segmenting video content into smaller parts, each encoded at
+        multiple bitrates, enabling the client to select the highest quality stream available without interruptions.
+        This approach is crucial for enhancing user satisfaction and optimizing network performance in the delivery of
+        live and on-demand content (<a href="https://dl.acm.org/doi/10.1145/3587745" target="_blank">Park et al.,
+            2023</a>).</p>
+    </p>
+    <p>To deliver content efficiently, DAZN relies on a robust network of Content Delivery Network (CDN)
+        infrastructures. In Italy, DAZN partners with leading CDN providers, including Akamai, Amazon CloudFront,
+        Fastly, and Video Streaming. This multi-CDN strategy allows DAZN to leverage the strengths of each provider,
+        ensuring that users are connected to the nearest server based on their geographic location. This deployment
+        minimizes latency and enhances overall streaming performance, resulting in a smoother viewing experience for
+        customers throughout the country.</p>
+    <p>Source: <a href="https://www.netify.ai/resources/applications/dazn" target="_blank">netify.ai</a></p>
+    <p>The localization of servers used for multimedia content distribution is pivotal in shaping the domain naming
+        conventions of these servers. Each CDN provider, such as Akamai or Amazon CloudFront, adopts distinct naming
+        practices. For example, servers managed by Akamai typically include specific keywords associated with the
+        provider in their domains, such as <code>*livedazn.akamaized.net</code>, in case of Amakai.
+        Similarly, Amazon CloudFront servers may exhibit different naming characteristics, as seen in
+        <code>*ac-cdn.live.indazn.com</code>. More over, for all the HTTP servers observed in the Video Streaming
+        infrastructure, the naming <code>*livedazn.daznedge.net</code> has been observed to be fairly frequent.
+</div>
