@@ -20,6 +20,10 @@ from lib.generic import __http_timeline_info
 from lib.generic import __variable_trend
 from lib.generic import __timeline
 
+from lib.generic import LIMIT
+
+import plotly.express as px
+
 
 # DAZN Section #1
 # This page contains the view-port on compiled Tstat traces, allowing the 
@@ -73,6 +77,7 @@ def print_layer4_section(data: pandas.DataFrame,
                chart_title=chart_title, info="info", legend=True, theme="streamlit")
 
 
+
 def print_layer7_section(hcom: pandas.DataFrame,
                          meta: pandas.DataFrame, acom: pandas.DataFrame, vcom: pandas.DataFrame):
     
@@ -84,43 +89,49 @@ def print_layer7_section(hcom: pandas.DataFrame,
     if data.empty:
         return
     
+    # call the timeline function (assuming it's defined elsewhere)
     __timeline(data=data, 
                meta=meta, 
                xs=xs, 
-               xe=xe, y="mime", color="mime", 
+               xe=xe, 
+               y="mime", 
+               color="mime", 
                xaxis_title="time",
                yaxis_title="mime", 
-               chart_title="http transactions timeline", info="info", legend=True, theme="streamlit")
-    
+               chart_title="http transactions timeline", 
+               info="info", 
+               legend=True, 
+               theme="streamlit")
 
-    col1, col2 = streamlit.columns(2)
+
+    # col1, col2 = streamlit.columns(2)
 
 
-    with col1:
-        __variable_trend(data=vcom, meta=meta, xs=xs, xe=xe, y="size",
-                        xaxis_title="time",
-                        yaxis_title="bytes [B]",
-                        chart_title="http video responses size over time",
-                        y_log_scale=True, color="blue")
+    # with col1:
+    #     __variable_trend(data=vcom, meta=meta, xs=xs, xe=xe, y="size",
+    #                     xaxis_title="time",
+    #                     yaxis_title="bytes [B]",
+    #                     chart_title="http video responses size over time",
+    #                     y_log_scale=True, color="blue")
         
-        __variable_trend(data=vcom, meta=meta, xs=xs, xe=xe, y="video_bitrate",
-                        xaxis_title="time",
-                        yaxis_title="rate [kbits]",
-                        chart_title="http video bitrate over time",
-                        y_log_scale=False, color="blue")
+    #     __variable_trend(data=vcom, meta=meta, xs=xs, xe=xe, y="video_bitrate",
+    #                     xaxis_title="time",
+    #                     yaxis_title="rate [kbits]",
+    #                     chart_title="http video bitrate over time",
+    #                     y_log_scale=False, color="blue")
     
-    with col2:
-        __variable_trend(data=acom, meta=meta, xs=xs, xe=xe, y="size",
-                        xaxis_title="time",
-                        yaxis_title="bytes [B]",
-                        chart_title="http audio responses size over time",
-                        y_log_scale=False, color="red")
+    # with col2:
+    #     __variable_trend(data=acom, meta=meta, xs=xs, xe=xe, y="size",
+    #                     xaxis_title="time",
+    #                     yaxis_title="bytes [B]",
+    #                     chart_title="http audio responses size over time",
+    #                     y_log_scale=False, color="red")
         
-        __variable_trend(data=acom, meta=meta, xs=xs, xe=xe, y="audio_bitrate",
-                        xaxis_title="time",
-                        yaxis_title="rate [kbits]",
-                        chart_title="http audio bitrate over time",
-                        y_log_scale=False, color="red")
+    #     __variable_trend(data=acom, meta=meta, xs=xs, xe=xe, y="audio_bitrate",
+    #                     xaxis_title="time",
+    #                     yaxis_title="rate [kbits]",
+    #                     chart_title="http audio bitrate over time",
+    #                     y_log_scale=False, color="red")
     
         
     
@@ -155,7 +166,8 @@ def process_udp_logs(com: str, per: str):
     
 
 def __render():
-    streamlit.caption("# TCP, UDP, and HTTP flows")
+    streamlit.html(os.path.join("www", SERVER, "__fst_section", "0.html"))
+
     col1, col2 = streamlit.columns(2)
 
     with col1:
@@ -163,7 +175,8 @@ def __render():
 
     with col2:
         opts = [opt for opt in os.listdir(os.path.join(SERVER, qos)) if opt.startswith("test")]
-        numb = streamlit.selectbox("Choose supervised experiment", sorted(opts, key=get_number))
+        opts = sorted(opts, key=get_number)
+        numb = streamlit.selectbox("Choose supervised experiment", options=opts[:LIMIT])
 
     meta = None
     
@@ -192,7 +205,7 @@ def __render():
     acom = load_data(path=path)
 
     # tcp section
-    streamlit.caption("## TCP")
+    streamlit.html(os.path.join("www", SERVER, "__fst_section", "1.html"))
     tcp_tokens = streamlit.multiselect("Select CNAMES over TCP flows", set(tcom["cname"]))
 
     if tcp_tokens:
@@ -202,7 +215,7 @@ def __render():
         streamlit.warning("You do not have selected any CNAME, nothing to see here")
 
     # udp section
-    streamlit.caption("## UDP")
+    streamlit.html(os.path.join("www", SERVER, "__fst_section", "2.html"))
     udp_tokens = streamlit.multiselect("Select CNAMEs over UDP flows", set(ucom["cname"]))
 
     if udp_tokens:
@@ -212,7 +225,7 @@ def __render():
         streamlit.warning("You do not have selected any CNAME, nothing to see here")
 
     # http section
-    streamlit.caption("## HTTP")
+    streamlit.html(os.path.join("www", SERVER, "__fst_section", "3.html"))
     if hcom is not None:
         format_layer(data=hcom, protocol=Protocol.HTTP, document=Document.LOG_HAR_COMPLETE)
         format_layer(data=vcom, protocol=Protocol.HTTP, document=Document.LOG_VIDEO_COMPLETE)

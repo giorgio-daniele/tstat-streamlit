@@ -1,0 +1,16 @@
+<div style="text-align: justify">
+    <h2 style="font-weight: bold;">Flussi in TCP</h2>
+    <p>
+        La ricostruzione del flusso TCP è disponibile sia in formato <code>complete</code> sia in formato 
+        <code>periodic</code>. Nel primo caso, ogni flusso è rappresentato graficamente attraverso un segmento 
+        temporale nell'intervallo <code>[ts; te]</code>. Ogni flusso inizia in corrispondenza dell'istante 
+        temporale in cui Tstat intercetta il segmento TCP con <code>SYN = 1</code> e termina nell'istante 
+        in cui Tstat intercetta il segmento con <code>FIN = 1</code> oppure <code>RST = 1</code>. 
+        Di ciascun flusso sono disponibili sia grandezze volumetriche (quantità di byte e pacchetti inviati dal 
+        client al server e viceversa) sia grandezze temporali (RTT medio). Nel secondo caso, ogni flusso è 
+        costituito da una sequenza temporale di intervalli disgiunti; ciascun intervallo rappresenta una frazione 
+        del dialogo avvenuto tra client e server, mentre gli spazi interposti rappresentano i silenzi che si sono 
+        verificati tra le due macchine. All'interno di ogni intervallo sono presenti le stesse metriche contenute 
+        nel documento gemello <code>complete</code> contestuali alla finestra di tempo in esame.
+    </p>
+</div>

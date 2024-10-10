@@ -1,0 +1,15 @@
+<div style="text-align: justify">
+    <h2 style="font-weight: bold;">Flussi in UDP</h2>
+    <p>
+        La ricostruzione del flusso UDP è disponibile sia in formato <code>complete</code> sia in formato 
+        <code>periodic</code>. Nel primo caso, ogni flusso è rappresentato graficamente attraverso un segmento 
+        temporale nell'intervallo <code>[ts; te]</code>. Poiché in UDP non esiste il concetto di connessione, 
+        i due flussi (quello dal client al server e quello dal server al client) sono indipendenti. La scelta 
+        effettuata in questa ricerca prevede di concentrarsi esclusivamente sul flusso dal server al client. 
+        Pertanto, ogni flusso UDP inizia nell'istante temporale in cui Tstat intercetta un datagramma UDP 
+        destinato a un socket client non precedentemente noto e termina a seguito di un periodo prolungato di 
+        inattività, durante il quale il server non trasmette più alcun dato. Nel secondo caso, ogni flusso è rappresentato, 
+        come nella controparte in <code>TCP</code>, da una sequenza ordinata di intervalli temporali disgiunti, 
+        ciascuno rappresentante una finestra di dialogo tra server e client.
+    </p>
+</div>

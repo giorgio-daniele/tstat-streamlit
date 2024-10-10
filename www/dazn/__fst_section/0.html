@@ -1,0 +1,13 @@
+<div style="text-align: justify">
+    <h2 style="font-weight: bold;">Ricostruzione dei flussi</h2>
+    <p>
+        A partire da una traccia in formato <code>.pcap</code>, Tstat genera una collezione di documenti
+        di testo. Ogni documento è associato a un protocollo di rete (TCP, UDP, HTTP, DNS, altri) ed è
+        organizzato in righe e colonne: le righe rappresentano un flusso del protocollo indicato, 
+        mentre le colonne dettagliano grandezze volumetriche, temporali e metadati associati. Per gli
+        scopi della ricerca, i protocolli di rete più interessanti sono <code>TCP</code>, <code>UDP</code>
+        e <code>HTTP</code>; tuttavia, dal momento che la totalità del traffico HTTP è ormai cifrato e
+        protetto in TLS, la ricostruzione dei flussi HTTP può avvenire solo attraverso la creazione di un
+        archivio HAR nel quale immagazzinare le richieste e le risposte occorse.
+    </p>
+</div>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <div style="text-align: justify; font-family: 'Roboto', sans-serif;">
+    <title>Procedura di Analisi Streambot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h3 {
+            color: #5c5c5c;
+        }
+
+        p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        strong {
+            color: #000;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>Procedura di Analisi delle Visualizzazioni DAZN</h3>
+    <p>
+        Attraverso l'insieme di documenti di testo che riportano le automazioni eseguite da Streambot nel tempo, è
+        possibile ritagliare gli intervalli di tempo nei quali era in corso una visualizzazione. Si definisce, pertanto,
+        <strong>intervallo di visualizzazione</strong> il generico intervallo [<code>ts</code>; <code>te</code>] 
+        coincidente con la riproduzione
+        di un evento DAZN. Utilizzando tutti gli intervalli di visualizzazione a nostra disposizione (sia quelli
+        provenienti dalla campagna di acquisizione A che la campagna di acquisizione B), è possibile caratterizzare il
+        nucleo caldo di domini ascrivibili a DAZN che più frequentemente si manifestano in concomitanza di una
+        visualizzazione. Pertanto, i risultati ottenuti consentono di estrapolare un insieme di espressioni regolari
+        attraverso le quali isolare i flussi occorsi in TCP e/o UDP associati a DAZN.
+    </p>
+</body>
+
+</html>

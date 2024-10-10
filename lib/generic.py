@@ -7,8 +7,8 @@ import numpy
 
 
 TEMPLATE = None
-OPACITY  = 0.7
-LIMIT    = 20
+OPACITY  = 1.0
+LIMIT    = 15
 
 # enum for different log document types
 class Document(enum.Enum):
@@ -229,68 +229,51 @@ def __variable_trend(data: pandas.DataFrame,
     return
 
 
-# def __variable_trend(data: pd.DataFrame,
-#                      x: str, 
-#                      y: str, 
-#                      xaxis_title: str,
-#                      yaxis_title: str,
-#                      chart_title: str, y_log=False):
-    
-#     fig = go.Figure()
-    
-#     for i, (rate, frame) in enumerate(data.items()):
 
-#         # if i == 0:
-#         #     st.dataframe(frame, use_container_width=True)
+def __mean_variable_trend(media: pandas.DataFrame,
+                          noise: pandas.DataFrame, x: str, y: str, 
+                          xaxis_title: str,
+                          yaxis_title: str,
+                          chart_title: str, y_log=False):
 
-#         # Extract x values from the data and convert to seconds
-#         x_values = frame[x] / 1000
-        
-#         # Extract y values from the data
-#         y_values = frame[y]
+    def add_trace(data: dict, color: str, dash=None, name_suffix=""):
+        for i, (rate, frame) in enumerate(data.items()):
+            # process and aggregate data
+            data = (frame[frame[y] != 0]
+                          .assign(**{x: frame[x] / 1000})
+                          .groupby(x, as_index=False)[y].mean())
+            data[x] = pandas.to_datetime(data[x], origin="unix", unit='s')
 
-#         # create a DataFrame to aggregate by x and compute mean of y
-#         agg_data = pd.DataFrame({x: x_values, y: y_values})
+            mode = 'lines' if dash is not None else 'lines+markers'
+            marker = dict(color=color[i], size=1  if dash is not None else 0.5)
+            line   = dict(color=color[i], width=1 if dash is not None else 1, dash=dash)
 
-#         # remove null samples
-#         agg_data = agg_data[agg_data[y] != 0]
+            # add trace to the figure
+            fig.add_trace(go.Scatter(
+                x=data[x], 
+                y=data[y], 
+                mode=mode, marker=marker, line=line,
+                name=f"{rate} kbits{name_suffix}" if rate != 'infi' else f"no-limits{name_suffix}"))
 
-#         # group by the second
-#         aggregated = agg_data.groupby(x).mean().reset_index()
+    # create figure
+    fig = go.Figure()
 
-#         # extract aggregated x and y values
-#         aggregated_x = aggregated[x]
-#         aggregated_y = aggregated[y]
+    # plot media traces
+    add_trace(media, TESTBED_RATES_COLORS)
 
-#         aggregated_x = pd.to_datetime(aggregated_x, origin="unix", unit='s') 
+    # plot noise traces if available
+    if noise:
+        add_trace(noise, TESTBED_RATES_COLORS, dash='dot', name_suffix=" (noise)")
 
-#         # set color for the trace
-#         color = TESTBED_RATES_COLORS[i]
+    # configure axes and layout
+    fig.update_xaxes(tickfont=dict(size=12), title=xaxis_title, showgrid=True, tickformat="%M:%S")
+    fig.update_yaxes(tickfont=dict(size=12), title=yaxis_title, showgrid=True, type='log' if y_log else 'linear')
+    fig.update_traces(opacity=OPACITY)
+    fig.update_layout(title=chart_title, title_font=dict(size=12))
 
-#         # Add a scatter trace for the aggregated data
-#         fig.add_trace(go.Scatter(x=aggregated_x, 
-#                                  y=aggregated_y, 
-#                                  mode='lines',
-#                                  name=rate,
-#                                  line=dict(color=color, width=1))) 
+    # render plot in Streamlit
+    streamlit.plotly_chart(fig, use_container_width=True)
 
-#     # set the x-axis
-#     fig.update_xaxes(tickfont=dict(size=12), title=xaxis_title, showgrid=True, tickformat="%M:%S")
-
-#     # set the y-axis
-#     if y_log:
-#         fig.update_yaxes(tickfont=dict(size=12), title=yaxis_title, showgrid=True, type='log')
-#     else:
-#         fig.update_yaxes(tickfont=dict(size=12), title=yaxis_title, showgrid=True)
-
-#     # set the opacity
-#     fig.update_traces(opacity=OPACITY)
-#     # set the title
-#     fig.update_layout(title=chart_title, title_font=dict(size=12))
-
-    
-#     # show the plot
-#     streamlit.plotly_chart(fig, use_container_width=True)
 
 def __timeline(data: pandas.DataFrame, 
                meta: pandas.DataFrame | None, 
@@ -356,49 +339,41 @@ def __timeline(data: pandas.DataFrame,
     # show the plot
     streamlit.plotly_chart(fig, theme=theme, use_container_width=True)
 
-# def __cumulative_function(x: str,
-#                           xaxis_title: str, 
-#                           yaxis_title: str,
-#                           chart_title: str, data: dict, func=None):
+def __cumulative_function(x: str,
+                          xaxis_title: str, 
+                          yaxis_title: str,
+                          chart_title: str, data: dict, noise: dict | None):
+    # init a new figure
+    fig = go.Figure()
+
+    # compute the cdf
+    for i, (rate, frame) in enumerate(data.items()):
+        values = numpy.sort(frame[x])
+        cumuls = numpy.arange(1, len(values) + 1) / len(values)
+
+        fig.add_trace(go.Scatter(
+            x=values, 
+            y=cumuls,
+            mode='lines+markers',
+            marker=dict(color=TESTBED_RATES_COLORS[i], size=0.8), 
+            line=dict(color=TESTBED_RATES_COLORS[i], width=1),
+            name=f"{rate} kbits" if rate != 'infi' else "no-limits"))
     
-#     # initialize the figure
-#     fig = go.Figure()
+    if noise is not None:
+        for i, (rate, frame) in enumerate(noise.items()):
+            values = numpy.sort(frame[x])
+            cumuls = numpy.arange(1, len(values) + 1) / len(values)
 
-#     # Iterate through the entries in the data dictionary
-#     for i, (rate, frame) in enumerate(data.items()):
-#         # define the color for the current rate
-#         color = TESTBED_RATES_COLORS[i]
-        
-#         # extract x data
-#         x_values = frame[x]
+            fig.add_trace(go.Scatter(
+                x=values, 
+                y=cumuls,
+                mode='lines',
+                line=dict(color=TESTBED_RATES_COLORS[i], width=0.5, dash='dash'),
+                name=f"{rate} kbits" if rate != 'infi' else "no-limits"))
 
-#         # sort the x_data to create the cumulative distribution
-#         sorted_x = numpy.sort(x_values)
+    fig.update_xaxes(title=xaxis_title, showgrid=True, type='log')
+    fig.update_yaxes(title=yaxis_title, showgrid=True)
+    fig.update_layout(title=chart_title, title_font=dict(size=12), 
+                      showlegend=True, legend_title="testbed bitrate traces")
 
-#         # calculate the CDF: rank divided by the total number of points
-#         cdf = numpy.arange(1, len(sorted_x) + 1) / len(sorted_x)
-
-#         # add the CDF as a trace to the plot
-#         fig.add_trace(go.Scatter(
-#             x=sorted_x, 
-#             y=cdf,
-#             mode='lines',
-#             name=f"{rate}" if rate != 'infi' else "infikbits",
-#             #marker=dict(size=5),
-#             line=dict(color=color, width=1.2),
-#             showlegend=True
-#         ))
-
-#     # update x-axis with titles and grid
-#     fig.update_xaxes(title=xaxis_title, showgrid=True, type='log')
-
-#     # update y-axis (CDF values range between 0 and 1)
-#     fig.update_yaxes(title=yaxis_title, showgrid=True)
-
-#     # set the title and layout with a legend title
-#     fig.update_layout(title=chart_title, title_font=dict(size=12), 
-#                       showlegend=True, 
-#                       legend_title_text="testbed bitrate traces")
-
-#     # render the plot in Streamlit
-#     st.plotly_chart(fig, use_container_width=True, theme=None)
+    streamlit.plotly_chart(fig, use_container_width=True)

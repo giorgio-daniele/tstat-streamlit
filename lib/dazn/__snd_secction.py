@@ -1,8 +1,11 @@
+import os
 import pandas
 import streamlit
 import plotly.express as px
 
 from lib.generic import OPACITY
+
+SERVER = "dazn"
 
 # file paths for the TCP and UDP CNAME data
 tcp_file_path = "res/dazn/cnames_tcp.txt"
@@ -80,6 +83,8 @@ def create_briefing():
     streamlit.dataframe(frame, use_container_width=True, hide_index=True)
 
 def __render():
+
+    streamlit.html(os.path.join("www", SERVER, "__snd_section", "0.html"))
 
     # load data from files
     tcp_data = load_cname_data(tcp_file_path)
