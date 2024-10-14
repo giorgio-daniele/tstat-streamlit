@@ -1,13 +1,158 @@
-<div style="text-align: justify">
-    <h2 style="font-weight: bold;">Campionamento dei flussi multimediali</h2>
-    <p>
-        A partire da una traccia in formato <code>.pcap</code>, Tstat genera una collezione di documenti
-        di testo. Ogni documento è associato a un protocollo di rete (TCP, UDP, HTTP, DNS, altri) ed è
-        organizzato in righe e colonne: le righe rappresentano un flusso del protocollo indicato, 
-        mentre le colonne dettagliano grandezze volumetriche, temporali e metadati associati. Per gli
-        scopi della ricerca, i protocolli di rete più interessanti sono <code>TCP</code>, <code>UDP</code>
-        e <code>HTTP</code>; tuttavia, dal momento che la totalità del traffico HTTP è ormai cifrato e
-        protetto in TLS, la ricostruzione dei flussi HTTP può avvenire solo attraverso la creazione di un
-        archivio HAR nel quale immagazzinare le richieste e le risposte occorse.
-    </p>
-</div>
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif; /* Applicazione del font Roboto */
+            line-height: 1.6; /* Migliora la leggibilità */
+        }
+
+        h1, h3, h4 {
+            font-weight: 700; /* Grassetto per intestazioni */
+        }
+
+        p {
+            margin: 0 0 10px; /* Margini per i paragrafi */
+        }
+
+        code {
+            font-family: monospace;
+            background-color: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="text-align: justify">
+        <h1 style="font-weight: bold;">Esperimenti Supervisionati</h1>
+        <p>
+            L'<strong>esperimento supervisionato</strong> è definito come la visualizzazione <em>sistematica</em>,
+            <em>ripetibile</em> ed <em>informatizzata</em> di uno o più eventi trasmessi in tempo reale sulla piattaforma
+            DAZN. Tale esperimento costituisce uno strumento analitico fondamentale per la ricostruzione dettagliata delle
+            grandezze che caratterizzano ciascuna sessione di visualizzazione; in altri termini, rappresenta un mezzo efficace per
+            monitorare il traffico di rete generato durante il periodo di visualizzazione e per valutare la qualità
+            dell'evento trasmesso sul dispositivo dell'utente.
+        </p>
+        <p>
+            Al fine di soddisfare i requisiti sopra delineati, è stato sviluppato lo strumento denominato
+            <strong>Streambot</strong>. Si tratta di un'applicazione da linea di comando che gestisce il ciclo di vita di un browser web e di un
+            analizzatore di rete, registrando le interazioni di rete in un archivio HAR (HTTP Archive). L'obiettivo principale di Streambot è
+            quello di automatizzare le operazioni di navigazione all'interno dell'applicazione web, simulando il comportamento di un
+            utente reale. In particolare, Streambot è progettato per avviare e interrompere la riproduzione di un evento DAZN, generando come
+            output tre tipologie di documenti: un file <code>.pcap</code> che contiene la registrazione di tutti i pacchetti di rete
+            intercettati durante l'esperimento, un file <code>.har</code> che raccoglie l'archivio di richieste e risposte
+            HTTP, e un file <code>.csv</code> che documenta la sequenza temporale delle automazioni effettuate.
+        </p>
+        <h3 style="font-weight: bold;">Campagne di Acquisizione</h3>
+        <p>
+            Come precedentemente accennato, la presente ricerca ha due obiettivi principali: a) identificare una
+            serie di espressioni regolari in grado di facilitare l'individuazione dei flussi TCP e UDP associati
+            all'infrastruttura distribuita dei servizi DAZN, partendo dall'analisi dei nomi canonici attribuiti a DAZN;
+            b) isolare tra i flussi associati a DAZN quelli compatibili con la trasmissione di contenuti multimediali.
+        </p>
+        <h4 style="font-weight: bold;">Campagna di Acquisizione A</h4>
+        <p>
+            Nella Campagna di Acquisizione A, Streambot è configurato per eseguire visualizzazioni di <em>breve</em>
+            durata (60 secondi) riguardanti tutti i principali eventi trasmessi in tempo reale da DAZN. L'obiettivo di tale campagna è la creazione di un database che raccolga informazioni sui flussi TCP e UDP
+            associati a tutti i servizi applicativi di DAZN, suddivisi come segue: servizi primari, relativi alla distribuzione di contenuti audio e video; servizi secondari, comprendenti
+            autenticazione e distribuzione dell'applicazione web (HTML, CSS, Javascript); servizi terziari, riguardanti
+            la telemetria. In particolare, per il servizio primario è essenziale che il database raccolga un numero
+            significativo di flussi provenienti dalle diverse CDN (Content Delivery Network) con cui DAZN collabora,
+            considerando che i server gestiti da terzi potrebbero non essere facilmente riconducibili a DAZN,
+            almeno fino al secondo livello nella gerarchia DNS (ad esempio, nel caso di Akamai).
+        </p>
+        <h4 style="font-weight: bold;">Campagna di Acquisizione B</h4>
+        <p>
+            Nella Campagna di Acquisizione B, Streambot è programmato per eseguire visualizzazioni di <em>lunga</em>
+            durata (300 secondi) su due eventi specifici offerti da DAZN in tempo reale. Il database risultante deve
+            contenere visualizzazioni sufficientemente prolungate per consentire procedure di campionamento adeguate
+            sui volumi di dati registrati durante l'evento. È cruciale che la durata di ciascuna visualizzazione
+            superi l'intervallo transitorio durante il quale l'algoritmo di adattamento del bitrate potrebbe
+            generare risultati instabili. Poiché DAZN utilizza attivamente CDN che supportano il protocollo QUIC,
+            la selezione di soli due eventi si basa sulla predisposizione del primo evento a essere frequentemente
+            consegnato tramite TCP, mentre il secondo utilizza prevalentemente UDP. Ciò consente un'analisi più
+            approfondita delle due soluzioni tecniche, ovvero HTTP 1.1 su TCP e HTTP 3 su QUIC/UDP.
+        </p>
+        <h3>Analisi audio video riprodotto</h3>
+        <p>
+            L'analisi dei risultati ottenuti dagli esperimenti supervisionati evidenzia che il numero di richieste per
+            le risorse audio e video rimane pressoché costante, sia in condizioni di larghezza di banda limitata, sia
+            quando la distribuzione dell'evento avviene attraverso i protocolli TCP o UDP. Questo comportamento è
+            attribuibile al fatto che, dal punto di vista applicativo, le tracce video e audio vengono segmentate in
+            porzioni regolari di durata predefinita (circa 2 secondi per piattaforme come DAZN). La segmentazione temporale è indipendente dalla qualità delle rappresentazioni video, motivo per cui il
+            numero di segmenti che compongono un evento rimane invariato anche al variare della qualità del contenuto
+            trasmesso.
+        </p>
+        <p>
+            Tuttavia, si osserva che la qualità del video aumenta significativamente con l'aumentare della larghezza di
+            banda disponibile. Quando la larghezza di banda passa da condizioni limitate (identificate da un colore rosso
+            scuro) a condizioni più favorevoli (indicate da un colore verde chiaro), la qualità del video aumenta
+            sensibilmente, misurata in Kilobit al secondo (Kbps). Questo comportamento è atteso e coerente con le
+            caratteristiche del protocollo DASH (Dynamic Adaptive Streaming over HTTP).
+        </p>
+        <p>
+            Al contrario, la qualità dell'audio non mostra variazioni significative in relazione alla larghezza di
+            banda. Questo comportamento può essere spiegato dal fatto che l'audio, rispetto al video, richiede una
+            quantità di dati inferiore per mantenere un livello qualitativo accettabile per l'utente. Anche in
+            condizioni di larghezza di banda limitata, la qualità dell'audio rimane stabile e soddisfacente,
+            senza necessità di effettuare adattamenti frequenti o drastici, come avviene per i flussi video. Questo
+            conferma che la qualità percepita dell'audio tende a essere meno sensibile ai cambiamenti di rete rispetto
+            al video, poiché gli utenti sono spesso disposti ad accettare audio di qualità inferiore senza che
+            l'esperienza complessiva ne risenta in modo significativo.
+        </p>
+
+        <h3>Analisi volumetrica</h3>
+        <p>
+            Dal punto di vista applicativo, il client è responsabile della generazione di messaggi HTTP in cui
+            richiede il download di un segmento video, audio oppure del prossimo manifesto (messaggio HTTP con
+            metodo GET, privo di corpo). Il server, dal canto
+            suo, è tenuto a rispondere con un messaggio contenente i dati richiesti (messaggio HTTP di risposta
+            dotato di corpo di dimensione variabile). Se la qualità del video è molto alta, la densità spaziale
+            dei pixel è maggiore (240p, 360p, 480p, eccetera), pertanto la dimensione di ogni fotogramma aumenta
+            di conseguenza. Ci si aspetta che quando la qualità del video è alta, il volume di dati emessi dal server
+            nel flusso TCP oppure UDP che raggiunge il client rifletta la dimensione dei fotogrammi richiesti. Nei
+            grafici che seguono, abbiamo rappresentato l'evoluzione nel tempo della grandezza che descive la quantità
+            di byte trasportati dal protocollo in entrambe le direzione. Successivamente, abbiamo utilizzato la CDF
+            per rappresentare la medesima grandezza nello spazio delle probabilità.
+        </p>
+        <p>
+            Al variare della larghezza di banda, cambia l’identificativo della rappresentazione della risorsa DASH richiesta
+            dal client, ma non cambia la dimensione fisica del messaggio. Questo significa che, indipendentemente dalla
+            larghezza di banda configurata, il flusso TCP e UDP dal client al server trasporterà sempre lo stesso numero di
+            byte. Se in TCP questo aspetto è abbastanza chiaro e ampiamente verificabile dai grafici che seguono, lo stesso
+            non si può dire per l’UDP. In UDP, infatti, non è possibile distinguere con chiarezza quali siano i datagrammi
+            che trasportano i messaggi HTTP, dato che anche i byte di acknowledgment del protocollo QUIC sono imbustati in
+            UDP. Pertanto, se in TCP la grandezza rappresentata riflette 1:1 la dimensione dei messaggi HTTP (al netto
+            dell'overhead derivante dal protocollo TLS), in UDP è presente anche la variabile acknowledgment.
+
+            Inoltre, dral momento che la MTU (Maximum Transfer Unit) sul percorso non cambia, lo spazio allocabile in ogni segmento o
+            datagramma è costante. L’effetto collaterale di riprodurre video di alta qualità non è solo quello di richiedere maggiori
+            volumi da scaricare ma anche aumentare l'overhead derivanta dal protocollo attraverso un maggior numero di intestazioni.  
+            Questo fatto produce un incremento dei
+            pacchetti per acknowledgment, sia in TCP che in UDP, e spiega l’assenza di una completa sovrapposizione delle
+            curve che descrivono i volumi emessi dal client nelle diverse condizioni di larghezza di banda, visto che in UDP
+            non è possibile scindere le due tipologie di datagrammi.
+        </p>
+        <h3>Analisi temporale</h3>
+        <p>
+            Dal grafico che mostra l'evoluzione della durata media dei bin, si scopre che il processo di riproduzione dell'evento
+            DAZN massimizza sempre la qualità del video riproducibile. Per questo motivo, la percentuale di banda libera su quella
+            occupata è sempre molto piccola in tutti quei casi in cui non esiste un <em>surplus</em> di banda. Questo fatto si
+            evince perchè la durata media dei bin è sovrapponibile a tutte le larghezza di banda eccetto per gli esperimenti
+            supervisionati nei quali non è prevista alcuna limitazione.
+        </p>
+        <p>
+            In tutti i casi in cui il rapporto tra banda libera e banda occupata è molto basso, lo scambio dati tra client e server
+            non è impulsivo: il tempo di download per tutte la larghezze di banda è costante, perchè la velocità di scaricamento 
+            cresce proporzionalmente al volume da scaricare.
+        </p>
+    </div>
+</body>
+
+</html>

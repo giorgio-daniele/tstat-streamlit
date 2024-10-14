@@ -1,4 +1,5 @@
 import os
+import numpy
 import pandas
 import streamlit
 
@@ -15,10 +16,11 @@ from lib.generic import LOG_UDP_PERIODIC
 from lib.generic import LOG_AUDIO_COMPLETE
 from lib.generic import LOG_VIDEO_COMPLETE
 
-from lib.generic import __tcp_udp_timeline_info
-from lib.generic import __http_timeline_info
-from lib.generic import __variable_trend
+from lib.generic import __layer4_timeline_info
+from lib.generic import __layer7_timeline_info
 from lib.generic import __timeline
+from lib.generic import __extract_streaming_periods
+
 
 from lib.generic import LIMIT
 
@@ -38,13 +40,13 @@ def format_layer(data: pandas.DataFrame, protocol: Protocol, document: Document)
     data[f"datetime_{te}"] = pandas.to_datetime(data[te], unit="ms", origin="unix")
 
     if document in {Document.LOG_TCP_COMPLETE, Document.LOG_UDP_COMPLETE, Document.LOG_TCP_PERIODIC, Document.LOG_UDP_PERIODIC}:
-        data["info"] = data.apply(lambda r: __tcp_udp_timeline_info(record=r, protocol=protocol, document=document), axis=1)
+        data["info"] = data.apply(lambda r: __layer4_timeline_info(record=r, protocol=protocol, document=document), axis=1)
     elif document == Document.LOG_HAR_COMPLETE:
-        data["info"] = data.apply(lambda r: __http_timeline_info(record=r), axis=1)
+        data["info"] = data.apply(lambda r: __layer7_timeline_info(record=r), axis=1)
     elif document == Document.LOG_AUDIO_COMPLETE:
-        data["info"] = data.apply(lambda r: __http_timeline_info(record=r), axis=1)
+        data["info"] = data.apply(lambda r: __layer7_timeline_info(record=r), axis=1)
     elif document == Document.LOG_VIDEO_COMPLETE:
-        data["info"] = data.apply(lambda r: __http_timeline_info(record=r), axis=1)
+        data["info"] = data.apply(lambda r: __layer7_timeline_info(record=r), axis=1)
 
 
 def print_layer4_section(data: pandas.DataFrame, 
@@ -59,7 +61,9 @@ def print_layer4_section(data: pandas.DataFrame,
         Document.LOG_TCP_COMPLETE: "complete", Document.LOG_UDP_COMPLETE: "complete",
         Document.LOG_TCP_PERIODIC: "periodic", Document.LOG_UDP_PERIODIC: "periodic"}
 
-    chart_title = f"log_{protocol_map.get(protocol, '')}_{document_map.get(document, '')}"
+    xaxis_title = "time [mm:ss]"
+    yaxis_title = f"{protocol_map[protocol].upper()} flow"
+    chart_title = f"Flussi {protocol_map[protocol].upper()}, versione {document_map[document]}"
 
     data = data[data["cname"].isin(cnames)]
     if data.empty:
@@ -71,11 +75,13 @@ def print_layer4_section(data: pandas.DataFrame,
     __timeline(data=data, 
                meta=meta, 
                xs=xs, 
-               xe=xe, y="id", color="cname", 
-               xaxis_title="time [mm:ss]", 
-               yaxis_title="flow", 
+               xe=xe, 
+               y="id", 
+               color="cname", 
+               xaxis_title=xaxis_title, 
+               yaxis_title=yaxis_title, 
                chart_title=chart_title, info="info", legend=True, theme="streamlit")
-
+    
 
 
 def print_layer7_section(hcom: pandas.DataFrame,
@@ -83,25 +89,65 @@ def print_layer7_section(hcom: pandas.DataFrame,
     
     xs, xe = "datetime_ts", "datetime_te"
 
-    # filter data based on keywords in the 'mime' column
-    data = hcom[hcom["mime"].str.contains(r"audio|video|dash", na=False)]
+    media = hcom[hcom["mime"].str.contains(r"audio|video|dash", na=False)]
 
-    if data.empty:
-        return
+    xaxis_title = "time [mm:ss]"
+    yaxis_title = "mime"
+    chart_title = "HTTP transaction by MIME"
     
-    # call the timeline function (assuming it's defined elsewhere)
-    __timeline(data=data, 
+    __timeline(data=media, 
                meta=meta, 
                xs=xs, 
                xe=xe, 
                y="mime", 
                color="mime", 
-               xaxis_title="time",
-               yaxis_title="mime", 
-               chart_title="http transactions timeline", 
+               xaxis_title=xaxis_title,
+               yaxis_title=yaxis_title, 
+               chart_title=chart_title, 
                info="info", 
                legend=True, 
                theme="streamlit")
+    
+    briefing = []
+    periods  = __extract_streaming_periods(frame=meta)
+    
+    for num, (ts, te) in enumerate(periods):
+        visit = media[(media['ts'] >= ts) & (media['ts'] <= te)]
+        
+        # calculate the number of requests for each MIME type
+        nvideo = len(visit[visit["mime"].str.contains(r"video", na=False)])
+        naudio = len(visit[visit["mime"].str.contains(r"audio", na=False)])
+        nmpd   = len(visit[visit["mime"].str.contains(r"dash", na=False)])
+        
+        # calculate the span of the period in seconds
+        span_s = int((te - ts) / 1000)
+        
+        # avoid division by zero for periods with zero span
+        if span_s > 0:
+            # calculate the frequency (requests per second)
+            freq_video = nvideo / span_s
+            freq_audio = naudio / span_s
+            freq_mpd   = nmpd   / span_s
+        else:
+            freq_video = freq_audio = freq_mpd = 0
+        
+        # append the information to the infos list
+        briefing.append({
+            "ts (s)": int(ts / 1000),          # start time in seconds
+            "te (s)": int(te / 1000),          # end time in seconds
+            "span (s)": span_s,                # time span in seconds
+            "# Video Requests": nvideo,        # total video requests
+            "# Audio Requests": naudio,        # total audio requests
+            "# MPD Requests": nmpd,            # total MPD requests (manifest)
+            "# Video Requests/s": freq_video,    # video requests per second
+            "# Audio Requests/s": freq_audio,    # audio requests per second
+            "# MPD Requests/s": freq_mpd         # MPD requests per second
+        })
+
+    # Display the DataFrame with the collected information in Streamlit
+    streamlit.caption("#### Riepilogo")
+    streamlit.dataframe(pandas.DataFrame(briefing), use_container_width=True, hide_index=True)
+
 
 
     # col1, col2 = streamlit.columns(2)
@@ -231,4 +277,3 @@ def __render():
         format_layer(data=vcom, protocol=Protocol.HTTP, document=Document.LOG_VIDEO_COMPLETE)
         format_layer(data=acom, protocol=Protocol.HTTP, document=Document.LOG_AUDIO_COMPLETE)
         print_layer7_section(hcom=hcom,  meta=meta,  vcom=vcom, acom=acom)
-    streamlit.markdown("---")
