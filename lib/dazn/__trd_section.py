@@ -10,9 +10,8 @@ from lib.generic import LIMIT
 
 from lib.generic import Protocol
 
-from lib.generic import __mean_variable_trend
-from lib.generic import __cumulative_function
-from lib.generic import __scatter
+from lib.generic import __plot_scatter
+from lib.generic import __plot_trend
 
 # DAZN Section #3
 # This page contains the view-port on compiled Tstat traces, allowing the 
@@ -22,302 +21,116 @@ from lib.generic import __scatter
 
 SERVER = "dazn"
 
-def load_single_sample(path: str):
-    return pandas.read_csv(path, sep=" ")
-
 @streamlit.cache_data(show_spinner=True, ttl=10_000)
-def load_samples(step: str, proto: Protocol, media: bool):
+def load_samples(step: str, protocol: Protocol):
 
-    data  = {}
-    proto = "tcp" if proto == Protocol.TCP else "udp"
+    samples = {}
 
+    # Loop over all available rates
     for rate in TESTBED_RATES:
-        cond = f"{rate}kbits" if rate != 'infi' else "infikbits"
-        path = os.path.join(
-            SERVER, 
-            cond, 
-            "media" if media else "noise", proto, step)
-        
-        paths = [os.path.join(path, f) for f in os.listdir(path)][:LIMIT]
+        root = os.path.join(SERVER, rate, "media", "tcp" if protocol is Protocol.TCP else "udp", step)
+        data = []
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            samples = list(executor.map(load_single_sample, paths))
-        data[rate] = pandas.concat(samples, ignore_index=True)
-    
-    return data
+        # Loop over all files in the root directory
+        for file in os.listdir(root):
+            path = os.path.join(root, file)
+            data.append(pandas.read_csv(path, sep=" "))
 
+        # Generate a frame from data (only first 10 files)
+        frame = pandas.concat(data[:25], ignore_index=True)
 
-def create_trend_charts(x: str, 
-                        y: str, 
-                        media: dict | None,
-                        noise: dict | None,
-                        xaxis_title: str, 
-                        yaxis_title: str, 
-                        chart_title: str, log_scale: bool = False):
-    
-    __mean_variable_trend(
-        x=x, 
-        y=y, 
-        media=media, 
-        noise=noise,
-        xaxis_title=xaxis_title, 
-        yaxis_title=yaxis_title,
-        chart_title=chart_title, 
-        y_log=log_scale)
+        x = "ts"  # Timestamp column
 
-def create_cdf_charts(x: str, 
-                      media: dict, 
-                      noise: dict, 
-                      xaxis_title: str, 
-                      yaxis_title: str, 
-                      chart_title: str):
-    
-    __cumulative_function(
-        x=x, 
-        media=media, 
-        noise=noise,
-        xaxis_title=xaxis_title, 
-        yaxis_title=yaxis_title,
-        chart_title=chart_title)
+        # Group by 'ts' and calculate aggregates (ignoring 0 values)
+        data = (frame[frame[x] != 0]
+                .assign(**{x: frame[x] / 1000})  # Convert 'ts' from ms to seconds
+                .groupby(x, as_index=False)
+                .agg(
+                    audio_reqs=("audio_reqs", lambda x: x[x != 0].mean()),  # Mean ignoring 0 values
+                    video_reqs=("video_reqs", lambda x: x[x != 0].mean()),  # Mean ignoring 0 values
+                    audio_rate=("avg_audio_rate", lambda x: x[x != 0].mean()),  # Mean ignoring 0 values
+                    video_rate=("avg_video_rate", lambda x: x[x != 0].mean()),  # Mean ignoring 0 values
+                    c_bytes_all=("c_bytes_all", "mean"),  # Mean of client bytes (no filtering)
+                    s_bytes_all=("s_bytes_all", "mean"),  # Mean of server bytes (no filtering)
+                    c_packs_all=("c_pkts_all", "mean"),   # Mean of client bytes (no filtering)
+                    s_packs_all=("s_pkts_all", "mean"),   # Mean of server bytes (no filtering)
+                    avg_bin_duration=("avg_bin_duration", "mean"),   # Mean of client bytes (no filtering)
+                    max_bin_duration=("max_bin_duration", "mean"),   # Mean of server bytes (no filtering)
+                    min_bin_duration=("min_bin_duration", "mean")    # Mean of server bytes (no filtering)
+                ))
 
-def create_scatter_charts(x: str, 
-                          y: str, 
-                          media: dict, 
-                          noise: dict, 
-                          xaxis_title: str, 
-                          yaxis_title: str, 
-                          chart_title: str):
-    
-    __scatter(
-        x=x, 
-        y=y, 
-        media=media, 
-        noise=noise,
-        xaxis_title=xaxis_title, 
-        yaxis_title=yaxis_title,
-        chart_title=chart_title)
+        # Replace timestamps with datetime format
+        data[x] = pandas.to_datetime(data[x], origin="unix", unit='s')
 
-    
-def protocol_section(step: str, 
-                     media: dict, 
-                     noise: dict, protocol: Protocol):
+        # Remove non-finite values (NaN, inf)
+        data = data.replace([numpy.inf, -numpy.inf], numpy.nan).dropna()
 
-    layer = ""
-    if protocol is Protocol.TCP:
-        layer = "TCP"
-    if protocol is Protocol.UDP:
-        layer = "UDP"
+        # Save the processed data for this rate
+        samples[rate] = data
 
-    streamlit.caption(f"# Livello {layer}")
-
-    ##########################################################
-    # HAR section
-    ##########################################################
-    streamlit.caption(f"## Analisi audio e video")
-    video_reqs, audio_reqs, video_qoe, audio_qoe = streamlit.columns(4)
-    with video_reqs:
-        x, y = "ts", "num_vid"
-        xaxis_title = "time [mm:ss]"
-        yaxis_title = "requests [#]"
-        chart_title = "Richieste video nel tempo"
-        create_trend_charts(x=x, y=y,
-            xaxis_title=xaxis_title, 
-            yaxis_title=yaxis_title, 
-            chart_title=chart_title, media=media, noise=None, log_scale=False)
-    with audio_reqs:
-        x, y = "ts", "num_aud"
-        xaxis_title = "time [mm:ss]"
-        yaxis_title = "requests [#]"
-        chart_title = "Richieste audio nel tempo"
-        create_trend_charts(x=x, y=y,
-            xaxis_title=xaxis_title, 
-            yaxis_title=yaxis_title, 
-            chart_title=chart_title, media=media, noise=None, log_scale=False)
-    with video_qoe:
-        x, y = "ts", "avg_vid"
-        xaxis_title = "time [mm:ss]"
-        yaxis_title = "rate [kbits]"
-        chart_title = "Qualità video nel tempo"
-        create_trend_charts(x=x, y=y,
-            xaxis_title=xaxis_title, 
-            yaxis_title=yaxis_title, 
-            chart_title=chart_title, media=media, noise=None, log_scale=False)
-    with audio_qoe:
-        x, y = "ts", "avg_aud"
-        xaxis_title = "time [mm:ss]"
-        yaxis_title = "rate [kbits]"
-        chart_title = "Qualità audio nel tempo"
-        create_trend_charts(x=x, y=y,
-            xaxis_title=xaxis_title, 
-            yaxis_title=yaxis_title, 
-            chart_title=chart_title, media=media, noise=None, log_scale=False)
+    return samples
 
 
-    ##########################################################
-    # L4 section
-    ##########################################################
-    streamlit.caption(f"## Analisi volumetrica")
+def plot_protocol(protocol: Protocol, samples: dict):
+
+    protocol = "TCP" if protocol is Protocol.TCP else "UDP"
+    streamlit.caption(f"### {protocol}")
+
     server, client = streamlit.columns(2)
-
     with server:
-        streamlit.caption(f"## Server")
-        col1, col2 = streamlit.columns(2)
-        with col1:
-            x = "ts"
-            y = "s_bytes_uniq" if protocol == Protocol.TCP else "s_bytes_all"
-            xaxis_title = "time [mm:ss]"
-            yaxis_title = "bytes [B]"
-            chart_title = "Bytes inviati dal server nel tempo"
-            create_trend_charts(x=x, y=y,
-                xaxis_title=xaxis_title, 
-                yaxis_title=yaxis_title, 
-                chart_title=chart_title, media=media, noise=None, log_scale=True)
-            # x = "ts"
-            # y = "s_pkts_data" if protocol == Protocol.TCP else "s_pkts_all"
-            # xaxis_title = "time [mm:ss]"
-            # yaxis_title = "packets [#]"
-            # chart_title = "Pacchetti inviati dal server nel tempo"
-            # create_trend_charts(x=x, y=y,
-            #     xaxis_title=xaxis_title, 
-            #     yaxis_title=yaxis_title, 
-            #     chart_title=chart_title, media=media, noise=None, log_scale=True)
-                
-        with col2:
-            x = "s_bytes_uniq" if protocol == Protocol.TCP else "s_bytes_all"
-            xaxis_title = "bytes [B]"
-            yaxis_title = "probability [%]"
-            chart_title = "Funzione di ripatizione su bytes trasmessi dal server"
-            create_cdf_charts(x=x,
-                media=media, noise=noise,
-                xaxis_title=xaxis_title, 
-                yaxis_title=yaxis_title, 
-                chart_title=chart_title)
-            # x = "s_pkts_data" if protocol == Protocol.TCP else "s_pkts_all"
-            # xaxis_title = "packets [#]"
-            # yaxis_title = "probability [%]"
-            # chart_title = "Funzione di ripatizione su pacchetti trasmessi dal server"
-            # create_cdf_charts(x=x,
-            #     media=media, noise=noise,
-            #     xaxis_title=xaxis_title, 
-            #     yaxis_title=yaxis_title, 
-            #     chart_title=chart_title)
-
+        __plot_trend(x="ts", y="s_bytes_all", 
+                   xaxis_title="time [mm:ss]", 
+                   yaxis_title="bytes [B]", 
+                   chart_title="server bytes over time", samples=samples)
     with client:
-        streamlit.caption(f"## Client")
-        col1, col2 = streamlit.columns(2)
-        with col1:
-            x = "ts"
-            y = "c_bytes_uniq" if protocol == Protocol.TCP else "c_bytes_all"
-            xaxis_title = "time [mm:ss]"
-            yaxis_title = "bytes [B]"
-            chart_title = "Bytes inviati dal client nel tempo"
-            create_trend_charts(x=x, y=y,
-                xaxis_title=xaxis_title, 
-                yaxis_title=yaxis_title, 
-                chart_title=chart_title, media=media, noise=None, log_scale=True)
-            # x = "ts"
-            # y = "c_pkts_data" if protocol == Protocol.TCP else "c_pkts_all"
-            # xaxis_title = "time [mm:ss]"
-            # yaxis_title = "packets [#]"
-            # chart_title = "Pacchetti inviati dal client nel tempo"
-            # create_trend_charts(x=x, y=y,
-            #     xaxis_title=xaxis_title, 
-            #     yaxis_title=yaxis_title, 
-            #     chart_title=chart_title, media=media, noise=None, log_scale=True)
-        with col2:
-            x = "c_bytes_uniq" if protocol == Protocol.TCP else "c_bytes_all"
-            xaxis_title = "bytes [B]"
-            yaxis_title = "probability [%]"
-            chart_title = "Funzione di ripatizione su bytes trasmessi dal client"
-            create_cdf_charts(x=x,
-                media=media, noise=noise,
-                xaxis_title=xaxis_title, 
-                yaxis_title=yaxis_title, 
-                chart_title=chart_title)
-            # x = "c_pkts_data" if protocol == Protocol.TCP else "c_pkts_all"
-            # xaxis_title = "packets [#]"
-            # yaxis_title = "probability [%]"
-            # chart_title = "Funzione di ripatizione su pacchetti trasmessi dal client"
-            # create_cdf_charts(x=x,
-            #     media=media, noise=noise,
-            #     xaxis_title=xaxis_title, 
-            #     yaxis_title=yaxis_title, 
-            #     chart_title=chart_title)
+        __plot_trend(x="ts", y="c_bytes_all", 
+                   xaxis_title="time [mm:ss]", 
+                   yaxis_title="bytes [B]", 
+                   chart_title="client bytes over time", samples=samples)
+    video, audio = streamlit.columns(2)
+    with video:
+        __plot_trend(x="ts", y="video_rate", 
+                   xaxis_title="time [mm:ss]", 
+                   yaxis_title="rate [kbits]", 
+                   chart_title="video quality over time", samples=samples)
+        __plot_scatter(x="s_bytes_all", y="video_rate", 
+                     xaxis_title="bytes [B]",
+                     yaxis_title="rate [kbits]", 
+                     chart_title="server bytes vs video rate", samples=samples)
+        __plot_scatter(x="avg_bin_duration", y="video_rate", 
+                     xaxis_title="bytes [B]",
+                     yaxis_title="rate [kbits]", 
+                     chart_title="server bytes vs audio rate", samples=samples)
+    with audio:
+        __plot_trend(x="ts", y="audio_rate", 
+                   xaxis_title="time [mm:ss]", 
+                   yaxis_title="rate [kbits]", 
+                   chart_title="audio quality over time", samples=samples)
+        __plot_scatter(x="s_bytes_all", y="audio_rate", 
+                     xaxis_title="bytes [B]",
+                     yaxis_title="rate [kbits]", 
+                     chart_title="server bytes vs audio rate", samples=samples)
+        __plot_scatter(x="avg_bin_duration", y="audio_rate", 
+                     xaxis_title="bytes [B]",
+                     yaxis_title="rate [kbits]", 
+                     chart_title="server bytes vs audio rate", samples=samples)
 
-    ##########################################################
-    # Time section
-    ##########################################################
-    streamlit.caption(f"## Analisi temporale")
-    col1, col2 = streamlit.columns(2)
-    with col1:
-        x, y = "ts", "avg_bin"
-        xaxis_title = "time [mm:ss]"
-        yaxis_title = "time [ms]"
-        chart_title = "Durata media dei bin nel tempo"
-        create_trend_charts(x=x, y=y,
-            xaxis_title=xaxis_title, 
-            yaxis_title=yaxis_title, 
-            chart_title=chart_title, media=media, noise=None, log_scale=False)
-    with col2:
-        x = "avg_bin"
-        xaxis_title = "time [ms]"
-        yaxis_title = "probability [%]"
-        chart_title = "Funzione di ripatizione della durata media dei bin"
-        create_cdf_charts(x=x,
-                media=media, noise=None,
-                xaxis_title=xaxis_title, 
-                yaxis_title=yaxis_title, 
-                chart_title=chart_title)
 
-    ##########################################################
-    # Correlation section
-    ##########################################################
-    streamlit.caption(f"## Analisi di correlazione")
-    col1, col2 = streamlit.columns(2)
-    with col1:
-        x = "s_bytes_uniq" if protocol == Protocol.TCP else "s_bytes_all"
-        y = "avg_vid"
-        yaxis_title = "rate [kbits]"
-        xaxis_title = "bytes [B]"
-        chart_title = "Correlazione tra bytes inviati dal server e qualità video"
-        create_scatter_charts(x=x, y=y,
-                media=media, noise=None,
-                xaxis_title=xaxis_title, 
-                yaxis_title=yaxis_title, 
-                chart_title=chart_title)
-    with col2:
-        x = "c_bytes_uniq" if protocol == Protocol.TCP else "c_bytes_all"
-        y = "avg_vid"
-        yaxis_title = "rate [kbits]"
-        xaxis_title = "bytes [B]"
-        chart_title = "Correlazione tra bytes inviati dal client e qualità video"
-        create_scatter_charts(x=x, y=y,
-                media=media, noise=None,
-                xaxis_title=xaxis_title, 
-                yaxis_title=yaxis_title, 
-                chart_title=chart_title)
+def main():
+
+    samples = load_samples(step="5000", protocol=Protocol.TCP)
+    plot_protocol(protocol=Protocol.TCP, samples=samples)
+
+    samples = load_samples(step="5000", protocol=Protocol.UDP)
+    plot_protocol(protocol=Protocol.UDP, samples=samples)
 
 
 
 
 def __render():
-    step = "5000"
 
-    tcp_media = load_samples(step=step, proto=Protocol.TCP, media=True)
-    udp_media = load_samples(step=step, proto=Protocol.UDP, media=True)
-    tcp_noise = load_samples(step=step, proto=Protocol.TCP, media=False)
-    udp_noise = load_samples(step=step, proto=Protocol.UDP, media=False)
+    samples = load_samples(step="5000", protocol=Protocol.TCP)
+    plot_protocol(protocol=Protocol.TCP, samples=samples)
 
-    streamlit.html(os.path.join("www", SERVER, "__trd_section", "0.html"))
-
-    protocol_section(
-        step=str(int(step) // 1000), 
-        media=tcp_media, 
-        noise=tcp_noise, protocol=Protocol.TCP)
-    
-    streamlit.markdown("---")
-    
-    protocol_section(
-        step=str(int(step) // 1000), 
-        media=udp_media, 
-        noise=udp_noise, protocol=Protocol.UDP)
+    samples = load_samples(step="5000", protocol=Protocol.UDP)
+    plot_protocol(protocol=Protocol.UDP, samples=samples)

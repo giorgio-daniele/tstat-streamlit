@@ -38,7 +38,7 @@ LOG_AUDIO_COMPLETE = "log_audio_complete"
 LOG_VIDEO_COMPLETE = "log_video_complete"
 
 # restbed bitrate conditions
-TESTBED_RATES = [1500, 3000, 4500, 6000, 7500, 'infi']
+TESTBED_RATES = ["1.5Mbps", "3Mbps", "4.5Mbps", "6Mbps", "7.5Mbps", "50Mbps"]
 
 # colors associated with testbed rates
 TESTBED_RATES_COLORS = [
@@ -50,8 +50,6 @@ TESTBED_RATES_COLORS = [
     '#00FF00'    # green
 ]
 
-# testbed birate conditions
-TESTBED_RATES = [1500, 3000, 4500, 6000, 7500, 'infi']
 
 # colors associated to testbed
 TESTBED_RATES_COLORS = [
@@ -117,8 +115,6 @@ def __layer4_timeline_info(record: dict, protocol: Protocol, document: Document)
                 f"<b>first pkt with data (client)</b>  {fmt_timestamp(record['ts'] + record['c_first'])}<br>"
                 f"<b>first pkt with data (server)</b>  {fmt_timestamp(record['ts'] + record['s_first'])}<br>")
             
-        if document in {Document.LOG_TCP_PERIODIC, Document.LOG_UDP_PERIODIC}:
-            text += f"<b>gp</b>  {fmt_timestamp(record['gap'])}<br>"
 
     if protocol == Protocol.UDP:
         # format text for udp timeline information
@@ -210,139 +206,44 @@ def __timeline(data: pandas.DataFrame | None,
     streamlit.plotly_chart(fig, theme=theme, use_container_width=True)
 
 
-def __mean_variable_trend(media: pandas.DataFrame | None,
-                          noise: pandas.DataFrame | None, 
-                          x: str, 
-                          y: str, 
-                          xaxis_title: str,
-                          yaxis_title: str,
-                          chart_title: str, y_log=False):
+def __plot_trend(x: str, y: str, 
+               xaxis_title: str, 
+               yaxis_title: str, 
+               chart_title: str, samples: dict):
 
-    # helper function to add traces (common paradigm)
-    def add_trace(frame: pandas.DataFrame, rate: str, i: int, mode: str, line_style: dict, marker_size=0):
-        # process and aggregate data
-        processed_data = (frame[frame[y] != 0]
-                          .assign(**{x: frame[x] / 1000})
-                          .groupby(x, as_index=False)[y].mean())
-
-        # handle non-finite values by dropping them (NaN or inf)
-        processed_data = processed_data.replace([numpy.inf, -numpy.inf], numpy.nan).dropna(subset=[y])
-
-        # round y values to integers
-        processed_data[y] = processed_data[y].round().astype(int)
-
-        # convert x-axis to datetime format
-        processed_data[x] = pandas.to_datetime(processed_data[x], origin="unix", unit='s')
-
-        # add trace to the figure
-        fig.add_trace(go.Scatter(
-            x=processed_data[x], 
-            y=processed_data[y], 
-            mode=mode,
-            marker=dict(color=TESTBED_RATES_COLORS[i], size=marker_size), 
-            line=dict(color=TESTBED_RATES_COLORS[i], **line_style),
-            name=f"{rate} kbits" if rate != 'infi' else "no-limits"))
-
-    # create figure
     fig = go.Figure()
 
-    # plot media traces
-    for i, (rate, frame) in enumerate(media.items()):
-        add_trace(frame, rate, i, 'lines+markers', {"width": 1}, marker_size=0.5)
-
-    # plot noise traces if available
-    if noise is not None:
-        for i, (rate, frame) in enumerate(noise.items()):
-            add_trace(frame, rate, i, 'lines', {"width": 0.5, "dash": "dot"}, marker_size=1)
-
-    # configure axes and layout
-    fig.update_xaxes(tickfont=dict(size=12), title=xaxis_title, showgrid=True, tickformat="%M:%S")
-    fig.update_yaxes(tickfont=dict(size=12), title=yaxis_title, showgrid=True, type='log' if y_log else 'linear')
-    fig.update_traces(opacity=OPACITY)
-    fig.update_layout(title=chart_title, title_font=dict(size=12))
-
-    # render plot in streamlit
-    streamlit.plotly_chart(fig, use_container_width=True)
-
-
-
-
-def __cumulative_function(x: str,
-                          xaxis_title: str, 
-                          yaxis_title: str,
-                          chart_title: str, 
-                          media: dict, noise: dict | None):
-
-    # initialize a new figure
-    fig = go.Figure()
-
-    # helper function to add traces (common paradigm)
-    def add_trace(frame: pandas.DataFrame, rate: str, i: int, mode: str, line_style: dict, marker_size=0):
-        values = numpy.sort(frame[x])
-        cumuls = numpy.arange(1, len(values) + 1) / len(values)
-        fig.add_trace(go.Scatter(
-            x=values, 
-            y=cumuls,
-            mode=mode,
-            marker=dict(color=TESTBED_RATES_COLORS[i], size=marker_size), 
-            line=dict(color=TESTBED_RATES_COLORS[i], **line_style),
-            name=f"{rate} kbits" if rate != 'infi' else "no-limits"))
-
-    # process media traces
-    for i, (rate, frame) in enumerate(media.items()):
-        add_trace(frame, rate, i, 'lines+markers', {"width": 1}, marker_size=0.5)
-
-    # process noise traces, if any
-    if noise is not None:
-        for i, (rate, frame) in enumerate(noise.items()):
-            add_trace(frame, rate, i, 'lines', {"width": 0.5, "dash": 'dash'}, marker_size=1)
-
-    # update axes and layout
-    fig.update_xaxes(title=xaxis_title, showgrid=True, type='log')
-    fig.update_yaxes(title=yaxis_title, showgrid=True)
-    fig.update_layout(title=chart_title, title_font=dict(size=12), 
-                      showlegend=True, legend_title="testbed bitrate traces")
-
-    streamlit.plotly_chart(fig, use_container_width=True)
-
-
-
-def __scatter(x: str, 
-              y: str, 
-              xaxis_title: str, 
-              yaxis_title: str, 
-              chart_title: str, media: dict, noise: dict | None):
-    
-    # init a new figure
-    fig = go.Figure()
-
-    # add scatter plot for the main data
-    for i, (rate, frame) in enumerate(media.items()):
+    for i, (rate, frame) in enumerate(samples.items()):
+        # Add a trace for each rate
         fig.add_trace(go.Scatter(
             x=frame[x], 
-            y=frame[y],
-            mode='markers',
-            marker=dict(color=TESTBED_RATES_COLORS[i], size=5),
-            name=f"{rate} kbits" if rate != 'infi' else "no-limits"))
-        
-    # # if noise data is provided, add scatter plot for the noise
-    # if noise is not None:
-    #     for i, (rate, frame) in enumerate(noise.items()):
-    #         fig.add_trace(go.Scatter(
-    #             x=frame[x],
-    #             y=frame[y],
-    #             mode='markers',
-    #             marker=dict(color=TESTBED_RATES_COLORS[i], size=5, symbol='cross'),
-    #             name=f"{rate} kbits (noise)" if rate != 'infi' else "no-limits (noise)"))
+            y=frame[y], 
+            mode="lines", 
+            name=rate, line=dict(color=TESTBED_RATES_COLORS[i], width=1)))
 
-    # update axes and layout
-    fig.update_xaxes(title=xaxis_title, showgrid=True)
-    fig.update_traces(opacity=OPACITY)
-    fig.update_yaxes(title=yaxis_title, showgrid=True)
-    fig.update_layout(title=chart_title, title_font=dict(size=12),
-                      showlegend=True, legend_title="testbed bitrate traces")
+    fig.update_xaxes(tickfont=dict(size=12), title=xaxis_title, showgrid=True, tickformat="%M:%S")
+    fig.update_yaxes(tickfont=dict(size=12), title=yaxis_title, showgrid=True, type="log")
+    fig.update_layout(title=chart_title, title_font=dict(size=12))
+    streamlit.plotly_chart(fig, use_container_width=True)
 
-    # display the plot in Streamlit
+def __plot_scatter(x: str, y: str, 
+                 xaxis_title: str, 
+                 yaxis_title: str, 
+                 chart_title: str, samples: dict):
+
+    fig = go.Figure()
+
+    for i, (rate, frame) in enumerate(samples.items()):
+        # Add a trace for each rate
+        fig.add_trace(go.Scatter(
+            x=frame[x], 
+            y=frame[y], 
+            mode="markers", 
+            name=rate, marker=dict(color=TESTBED_RATES_COLORS[i], size=5)))
+
+    fig.update_xaxes(tickfont=dict(size=12), title=xaxis_title, showgrid=True, type="log")
+    fig.update_yaxes(tickfont=dict(size=12), title=yaxis_title, showgrid=True)
+    fig.update_layout(title=chart_title, title_font=dict(size=12))
     streamlit.plotly_chart(fig, use_container_width=True)
 
 

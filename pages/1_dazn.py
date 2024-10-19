@@ -1,6 +1,6 @@
 import os
 import streamlit
- 
+
 from lib.dazn import __fst_section
 from lib.dazn import __snd_section
 from lib.dazn import __trd_section
@@ -9,6 +9,7 @@ SERVER = "dazn"
 
 def main():
 
+        
     FST_CHOICE = "Introduzione"
     SND_CHOICE = "Ricostruzione Flussi"
     TRD_CHOICE = "Profilazione CNAMEs"
@@ -33,16 +34,18 @@ def main():
         __trd_section.__render()
         
 
-    #streamlit.html(os.path.join("www", SERVER, "3.html"))
+    # streamlit.html(os.path.join("www", SERVER, "3.html"))
 
     # # render the first section
     # __fst_section.__render()
 
     # # render the second section
-    # __snd_secction.__render()
+    # __snd_section.__render()
 
-    # render the third section
+    # # render the third section
     # __trd_section.__render()
+
+    pass
 
 main()
 
